@@ -4,8 +4,8 @@ import glob
 import imutils
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from test import corner_detect
 def warpPerspective(img, main_image, H, output_shape):
-
     H_inv = np.linalg.inv(H)
     for i in tqdm(range(output_shape[0])):
         for j in range(output_shape[1]):
@@ -16,9 +16,29 @@ def warpPerspective(img, main_image, H, output_shape):
             # Check if the (x, y) coordinates are within the bounds of the input image
             if x >= 0 and x < img.shape[1] and y >= 0 and y < img.shape[0]:
                 # If the (x, y) coordinates are valid, set the corresponding pixel in the output image
-                main_image[i, j] = img[y, x]
-    
+                
+                if main_image[i, j, 0] +main_image[i, j, 1]+ main_image[i, j, 2] != 0.0:
+                    main_image[i, j] = img[y, x]* 0.5 + main_image[i, j] * 0.5
+                else:
+                    main_image[i, j] = img[y, x]
     return main_image
+
+def find_point_auto(img_attach, img_main):
+    # Initialize the feature detector and descriptor extractor
+    detector = cv2.ORB_create()
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+    # Detect keypoints and compute descriptors for both images
+    keypoints1, descriptors1 = detector.detectAndCompute(img_attach, None)
+    keypoints2, descriptors2 = detector.detectAndCompute(img_main, None)
+
+    # Match the descriptors using the BFMatcher
+    matches = matcher.match(descriptors1, descriptors2)
+
+    # Use RANSAC to estimate the homography matrix
+    src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
+    dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+    return src_pts, dst_pts
 
 def padImage(image):
 
@@ -65,8 +85,11 @@ if __name__ == "__main__":
     for i in range(1, len(image_list)):
         attach_img = image_list[i]
         height, width, channel = padded_main.shape
-        pnt_attach , pnt_main = get_points(attach_img, padded_main)
+        #pnt_attach , pnt_main = get_points(attach_img, padded_main)
+        pnt_attach, pnt_main = find_point_auto(attach_img, padded_main)
+        corner_detect(attach_img,image_path[i][6:-4])
         H, _ = cv2.findHomography(pnt_attach, pnt_main)
+        #H, _ = cv2.findHomography(pnt_attach, pnt_main, cv2.RANSAC, 5.0)
         H_inv = np.linalg.inv(H)
         result = np.zeros((height, width, channel))
 
