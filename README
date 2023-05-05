@@ -1,0 +1,14 @@
+README
+I implement the panorama with manual and also RANSAC
+I tried harris corner detection, you can see the image corner detected images, but I cannot calculate the correct H and combine it with the other image. Manual is working finally. 
+I applied a 50:50 blending with the image and that's the reason why it is so blurry on details
+
+Sources:
+Read all image in folder:
+https://www.youtube.com/watch?v=Zs51cg4mb0k&t=692s
+(This is a tutorial for panorama python but it use too much external library, so I only kept his method of read image names)
+
+Find points and match them manually:HW3
+
+Find points and match them automatically:
+https://www.tutorialspoint.com/opencv-python-implementing-feature-matching-between-two-images-using-sift
