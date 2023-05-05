@@ -12,3 +12,6 @@ Find points and match them manually:HW3
 
 Find points and match them automatically:
 https://www.tutorialspoint.com/opencv-python-implementing-feature-matching-between-two-images-using-sift
+
+Corner detection:
+https://docs.opencv.org/3.4/dc/d0d/tutorial_py_features_harris.html

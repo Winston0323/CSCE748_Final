@@ -25,7 +25,7 @@ if __name__ == "__main__":
         
     image_path = glob.glob("Input/*.jpg")
     image_list = []
-    
+    # read all images
     for image in image_path:
         image_list.append(cv2.imread(image))
         cv2.imshow
@@ -39,19 +39,15 @@ if __name__ == "__main__":
         pnt_attach = []
         pnt_main = []
         H = np.zeros((3, 3)) 
+        # check if manual input
         if(Manual):
             pnt_attach , pnt_main = get_points(attach_img, padded_main)
             H, _ = cv2.findHomography(pnt_attach, pnt_main)
         else:
             pnt_attach, pnt_main = find_point_auto(attach_img, padded_main)
             H, _ = cv2.findHomography(pnt_attach, pnt_main, cv2.RANSAC, 2.0)
-        H_inv = np.linalg.inv(H)
-        result = np.zeros((height, width, channel))
-
-        attach_hgt, attach_wdt, channel = attach_img.shape
-
+        #attach perspective image on to padded main image
         padded_main = warpPerspective(attach_img, padded_main, H, (height, width, channel))
-        #cv2.imshow("main",padded_main)
         if Manual:
             cv2.imwrite('manual.jpg', padded_main)
         else:

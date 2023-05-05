@@ -16,15 +16,14 @@ def get_points(img_attach, img_main):
     return np.array([p1, p2, p3, p4]) , np.array([p5, p6, p7, p8])
 
 def padImage(image):
-    # Get the current size of the image
+    
     height, width, channel = image.shape
     desired_height = height * 2
     desired_width = width * 2
-    # Compute the amount of padding needed
-    h_padding = max(0, desired_height - height)
-    w_padding = max(0, desired_width - width)
+    h_padding = height
+    w_padding = width
 
-    # Compute the top, bottom, left, and right padding sizes
+    # Compute padding zone
     top = h_padding // 2
     bottom = h_padding - top
     left = w_padding // 2
@@ -33,35 +32,42 @@ def padImage(image):
     padded_img = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
     resized_img = cv2.resize(padded_img, (desired_width, desired_height))
     return resized_img
-def find_point_auto(img_attach, img_main):
-    # Initialize the feature detector and descriptor extractor
-    detector = cv2.ORB_create()
-    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-    # Detect keypoints and compute descriptors for both images
+def find_point_auto(img_attach, img_main):
+    # Initialize detector
+    detector = cv2.ORB_create()
+
+    # Detect keypoints
     keypoints1, descriptors1 = detector.detectAndCompute(img_attach, None)
     keypoints2, descriptors2 = detector.detectAndCompute(img_main, None)
 
-    # Match the descriptors using the BFMatcher
+    # Match the points using brute force
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     matches = matcher.match(descriptors1, descriptors2)
-
-    # Use RANSAC to estimate the homography matrix
-    src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
-    dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+    src_pts = []
+    dst_pts = []
+    for match in matches:
+        src_keypoint = keypoints1[match.queryIdx]
+        dst_keypoint = keypoints2[match.trainIdx]
+       
+        src_pts.append(np.array(src_keypoint.pt).reshape(1, 2))
+        dst_pts.append(np.array(dst_keypoint.pt).reshape(1, 2))
+    # convert to float 32 for findHomography
+    src_pts = np.float32(src_pts)
+    dst_pts = np.float32(dst_pts)
     return src_pts, dst_pts
 
 def warpPerspective(img, main_image, H, output_shape):
     H_inv = np.linalg.inv(H)
+    # loop through all pixel inside attaching image
     for i in tqdm(range(output_shape[0])):
         for j in range(output_shape[1]):
-            # Calculate the corresponding (x, y) coordinates in the input image
             coords = np.dot(H_inv, np.array([j, i, 1]))
             x = int(coords[0]/coords[2]) 
             y = int(coords[1]/coords[2])
-            # Check if the (x, y) coordinates are within the bounds of the input image
+            # Check if the x, y coordinates are within the bounds
             if x >= 0 and x < img.shape[1] and y >= 0 and y < img.shape[0]:
-                # If the (x, y) coordinates are valid, set the corresponding pixel in the output image
-                
+                # blend image
                 if main_image[i, j, 0] +main_image[i, j, 1]+ main_image[i, j, 2] != 0.0:
                     main_image[i, j] = img[y, x]* 0.5 + main_image[i, j] * 0.5
                 else:
@@ -70,20 +76,13 @@ def warpPerspective(img, main_image, H, output_shape):
 
 def corner_detect(image, image_name):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    corners = cv2.cornerHarris(gray, 2, 3, 0.04)
 
-    # Set Harris detector parameters
-    block_size = 3
-    ksize = 3
-    k = 0.04
-
-    # Apply Harris corner detection algorithm
-    corners = cv2.cornerHarris(gray, block_size, ksize, k)
-
-    # Threshold the corner response to retain only the strongest corners
+    # Threshold the corner response
     threshold = 0.01 * corners.max()
     corners_thresh = np.where(corners > threshold)
 
-    # Find the local maxima of the thresholded corner response
+    #local maxima
     win_size = 5
     max_corners = []
     for y, x in zip(corners_thresh[0], corners_thresh[1]):
@@ -93,7 +92,7 @@ def corner_detect(image, image_name):
             max_corners.append((x, y))
 
     for pos in max_corners:
-        cv2.circle(image, (pos[0], pos[1]), 3, (0, 0, 255), -1)
-    print('image_' + image_name +'_corner.jpg')
+        cv2.circle(image, (pos[0], pos[1]), 2, (0, 0, 255), -1)
+        
     cv2.imwrite('image_' + image_name +'_corner.jpg', image)
     return np.array(max_corners)
